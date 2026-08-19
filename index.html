@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>ESP32 Dashboard</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f2f2f2;
+            text-align: center;
+            padding: 30px;
+        }
+
+        .card {
+            background: white;
+            display: inline-block;
+            width: 220px;
+            margin: 10px;
+            padding: 25px;
+            border-radius: 15px;
+        }
+
+        .value {
+            font-size: 40px;
+            margin-top: 15px;
+        }
+
+        #status {
+            margin: 20px;
+            font-size: 18px;
+        }
+
+        table {
+            margin: 30px auto;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th,
+        td {
+            padding: 12px;
+            border: 1px solid #999;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>ESP32 Dashboard</h1>
+
+    <div class="card">
+        <h2>Temperature</h2>
+        <div class="value" id="temperature">-- °C</div>
+    </div>
+
+    <div class="card">
+        <h2>Humidity</h2>
+        <div class="value" id="humidity">-- %</div>
+    </div>
+
+    <div id="status">Loading...</div>
+
+    <h2>Reading History</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Temperature</th>
+                <th>Humidity</th>
+            </tr>
+        </thead>
+
+        <tbody id="history">
+        </tbody>
+    </table>
+
+
+    <script>
+
+        async function updateDashboard() {
+
+            try {
+
+                const sensorResponse = await fetch(
+                    "http://127.0.0.1:8000/sensor"
+                );
+
+                const sensorData = await sensorResponse.json();
+
+                document.getElementById("temperature").textContent =
+                    sensorData.temperature + " °C";
+
+                document.getElementById("humidity").textContent =
+                    sensorData.humidity + " %";
+
+
+                const historyResponse = await fetch(
+                    "http://127.0.0.1:8000/history"
+                );
+
+                const historyData = await historyResponse.json();
+
+                const historyTable =
+                    document.getElementById("history");
+
+                historyTable.innerHTML = "";
+
+
+                historyData.forEach(function (reading) {
+
+                    const row = document.createElement("tr");
+
+                    const timeCell = document.createElement("td");
+                    timeCell.textContent = reading.timestamp;
+
+                    const temperatureCell = document.createElement("td");
+                    temperatureCell.textContent =
+                        reading.temperature + " °C";
+
+                    const humidityCell = document.createElement("td");
+                    humidityCell.textContent =
+                        reading.humidity + " %";
+
+                    row.appendChild(timeCell);
+                    row.appendChild(temperatureCell);
+                    row.appendChild(humidityCell);
+
+                    historyTable.appendChild(row);
+
+                });
+
+
+                document.getElementById("status").textContent =
+                    "Connected to FastAPI";
+
+            } catch (error) {
+
+                console.error(error);
+
+                document.getElementById("status").textContent =
+                    "Error connecting to FastAPI";
+
+            }
+
+        }
+
+
+        updateDashboard();
+
+        setInterval(updateDashboard, 2000);
+
+    </script>
+
+</body>
+
+</html>
