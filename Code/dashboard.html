@@ -161,7 +161,7 @@ System Status:
 <h3>Solar Current</h3>
 <div class="value">
 <span id="solar_current">--</span>
-<span class="unit">A</span>
+<span class="unit">mA</span>
 </div>
 </div>
 
@@ -175,6 +175,37 @@ System Status:
 
 </div>
 
+<!-- WEATHER FORECASTS -->
+
+<h2 class="section-title">🌤️ Weather Forecasts</h2>
+
+<div class="grid">
+
+<div class="card">
+<h3>UV Index</h3>
+<div class="value">
+<span id="uv_index">--</span>
+<span class="unit"></span>
+</div>
+</div>
+
+<div class="card">
+<h3>Rain Forecast</h3>
+<div class="value">
+<span id="rain_forecast">--</span>
+<span class="unit">mm</span>
+</div>
+</div>
+
+<div class="card">
+<h3>Cloud Coverage</h3>
+<div class="value">
+<span id="cloud_coverage">--</span>
+<span class="unit">%</span>
+</div>
+</div>
+
+</div>
 
 <!-- BATTERY -->
 
@@ -185,7 +216,7 @@ System Status:
 <div class="card">
 <h3>Battery Voltage</h3>
 <div class="value">
-<span id="battery_voltage">--</span>
+<span id="battery_voltage_val">--</span>
 <span class="unit">V</span>
 </div>
 </div>
@@ -193,13 +224,13 @@ System Status:
 <div class="card">
 <h3>Battery Current</h3>
 <div class="value">
-<span id="battery_current">--</span>
-<span class="unit">A</span>
+<span id="battery_current_val">--</span>
+<span class="unit">mA</span>
 </div>
 </div>
 
 <div class="card">
-<h3>Battery Level</h3>
+<h3>Battery Percentage</h3>
 <div class="value">
 <span id="battery_percentage">--</span>
 <span class="unit">%</span>
@@ -224,83 +255,70 @@ System Status:
 <div class="grid">
 
 <div class="card">
-<h3>L1</h3>
+<h3>L1 - Variable High Loads</h3>
 <div class="value" id="l1">--</div>
 </div>
 
 <div class="card">
-<h3>L2</h3>
+<h3>L2 - Constant Loads</h3>
 <div class="value" id="l2">--</div>
 </div>
 
 <div class="card">
-<h3>L3</h3>
+<h3>L3 - Occasional Loads</h3>
 <div class="value" id="l3">--</div>
 </div>
 
+<div class="card">
+<h3>L4 - Battery Charger</h3>
+<div class="value" id="l4">--</div>
 </div>
 
+</div>
 
 <!-- DEVICES -->
 
 <h2 class="section-title">🏠 Devices</h2>
 
-<div class="grid">
+<table>
 
-<div class="card">
-<h3>Motor</h3>
-<div class="value" id="motor">--</div>
-</div>
+<thead>
+<tr>
+<th>Device</th>
+<th>Voltage (V)</th>
+<th>Current (mA)</th>
+<th>Power (W)</th>
+</tr>
+</thead>
 
-<div class="card">
-<h3>Pump</h3>
-<div class="value" id="pump">--</div>
-</div>
+<tbody id="devices_table">
+<tr>
+<td>Motor</td>
+<td><span id="motor_voltage">--</span></td>
+<td><span id="motor_current">--</span></td>
+<td><span id="motor_power">--</span></td>
+</tr>
+<tr>
+<td>Lights</td>
+<td><span id="lights_voltage">--</span></td>
+<td><span id="lights_current">--</span></td>
+<td><span id="lights_power">--</span></td>
+</tr>
+<tr>
+<td>USB Charger</td>
+<td><span id="usb_voltage">--</span></td>
+<td><span id="usb_current">--</span></td>
+<td><span id="usb_power">--</span></td>
+</tr>
+<tr>
+<td>Charger</td>
+<td><span id="charger_voltage">--</span></td>
+<td><span id="charger_current">--</span></td>
+<td><span id="charger_power">--</span></td>
+</tr>
+</tbody>
 
-<div class="card">
-<h3>Charger</h3>
-<div class="value" id="charger">--</div>
-</div>
-
-<div class="card">
-<h3>Lights</h3>
-<div class="value" id="lights">--</div>
-</div>
-
-</div>
-
-
-<!-- CONSUMPTION -->
-
-<h2 class="section-title">📊 Power Consumption</h2>
-
-<div class="grid">
-
-<div class="card">
-<h3>Load Voltage</h3>
-<div class="value">
-<span id="load_voltage">--</span>
-<span class="unit">V</span>
-</div>
-</div>
-
-<div class="card">
-<h3>Load Current</h3>
-<div class="value">
-<span id="load_current">--</span>
-<span class="unit">A</span>
-</div>
-</div>
-
-<div class="card">
-<h3>Load Power</h3>
-<div class="value">
-<span id="load_power">--</span>
-<span class="unit">W</span>
-</div>
-</div>
-
-</div>
+</table>
 
 
 <!-- AI CHAT -->
@@ -327,17 +345,19 @@ System Status:
 </div>
 
 
-<!-- HISTORY -->
+<!-- SENSORS TELEMETRY -->
 
-<h2 class="section-title">📈 Reading History</h2>
+<h2 class="section-title">📊 Sensors Telemetry</h2>
+
+<div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px;">
 
 <table>
 
-<thead>
+<thead style="position: sticky; top: 0; background: #1f2937;">
 <tr>
 <th>Time</th>
-<th>Temperature</th>
-<th>Humidity</th>
+<th>Temperature (°C)</th>
+<th>Rain Status</th>
 </tr>
 </thead>
 
@@ -346,13 +366,11 @@ System Status:
 
 </table>
 
-
 </div>
-
 
 <script>
 
-const API_URL = "http://127.0.0.1:8000";
+const API_URL = "http://192.168.1.5:8000";
 
 
 function updateStatus(elementId, value) {
@@ -373,78 +391,82 @@ function updateStatus(elementId, value) {
 
 }
 
-
 async function loadSensorData() {
 
     try {
 
         const response =
-            await fetch(API_URL + "/sensor");
+            await fetch(API_URL + "/dashboard-data");
 
         const data =
             await response.json();
 
-
-        document.getElementById(
-            "solar_voltage"
-        ).textContent = data.solar_voltage;
-
-
-        document.getElementById(
-            "solar_current"
-        ).textContent = data.solar_current;
-
-
-        document.getElementById(
-            "solar_power"
-        ).textContent = data.solar_power;
-
-
-        document.getElementById(
-            "battery_voltage"
-        ).textContent = data.battery_voltage;
-
-
-        document.getElementById(
-            "battery_current"
-        ).textContent = data.battery_current;
-
-
-        document.getElementById(
-            "battery_percentage"
-        ).textContent = data.battery_percentage;
-
-
-        document.getElementById(
-            "battery_temperature"
-        ).textContent = data.battery_temperature;
-
-
-        document.getElementById(
-            "load_voltage"
-        ).textContent = data.load_voltage;
-
-
-        document.getElementById(
-            "load_current"
-        ).textContent = data.load_current;
-
-
-        document.getElementById(
-            "load_power"
-        ).textContent = data.load_power;
-
-
+        // Load Status (L1, L2, L3, L4)
         updateStatus("l1", data.l1);
         updateStatus("l2", data.l2);
         updateStatus("l3", data.l3);
+        updateStatus("l4", data.l4);
 
-        updateStatus("motor", data.motor);
-        updateStatus("pump", data.pump);
-        updateStatus("charger", data.charger);
-        updateStatus("lights", data.lights);
+        // Sensors
+        document.getElementById(
+            "battery_temperature"
+        ).textContent = data.temp.toFixed(2);
+
+        // Devices (Motor, Lights, USB)
+        document.getElementById(
+            "motor_voltage"
+        ).textContent = data.motor.v.toFixed(2);
+
+        document.getElementById(
+            "motor_current"
+        ).textContent = data.motor.i.toFixed(2);
+
+        document.getElementById(
+            "motor_power"
+        ).textContent = data.motor.p.toFixed(2);
 
 
+        document.getElementById(
+            "lights_voltage"
+        ).textContent = data.lights.v.toFixed(2);
+
+        document.getElementById(
+            "lights_current"
+        ).textContent = data.lights.i.toFixed(2);
+
+        document.getElementById(
+            "lights_power"
+        ).textContent = data.lights.p.toFixed(2);
+
+
+        document.getElementById(
+            "usb_voltage"
+        ).textContent = data.usb.v.toFixed(2);
+
+        document.getElementById(
+            "usb_current"
+        ).textContent = data.usb.i.toFixed(2);
+
+        document.getElementById(
+            "usb_power"
+        ).textContent = data.usb.p.toFixed(2);
+
+
+        // Charger (from charger channel)
+        document.getElementById(
+            "charger_voltage"
+        ).textContent = data.charger.v.toFixed(2);
+
+        document.getElementById(
+            "charger_current"
+        ).textContent = data.charger.i.toFixed(2);
+
+        document.getElementById(
+            "charger_power"
+        ).textContent = data.charger.p.toFixed(2);
+
+
+        // Connection status
         document.getElementById(
             "connection"
         ).textContent = "Connected";
@@ -453,6 +475,53 @@ async function loadSensorData() {
             "connection"
         ).style.color = "lightgreen";
 
+        // Solar (same as Mains)
+        document.getElementById(
+            "solar_voltage"
+        ).textContent = data.mains.v.toFixed(2);
+
+        document.getElementById(
+            "solar_current"
+        ).textContent = data.mains.i.toFixed(2);
+
+        document.getElementById(
+            "solar_power"
+        ).textContent = data.mains.p.toFixed(2);
+
+        // Battery values (from backup)
+        document.getElementById(
+            "battery_voltage_val"
+        ).textContent = data.backup.v.toFixed(2);
+
+        document.getElementById(
+            "battery_current_val"
+        ).textContent = data.backup.i.toFixed(2);
+
+
+        // Battery percentage (3S 3.7V li-ion = 12.6V max, 9V min)
+        const maxVoltage = 12.6;
+        const minVoltage = 9.0;
+        const batteryPercent = Math.max(0, Math.min(100, 
+        ((data.backup.v - minVoltage) / (maxVoltage - minVoltage)) * 100
+        ));
+        document.getElementById(
+            "battery_percentage"
+        ).textContent = batteryPercent.toFixed(1);
+        
+        // Weather data
+    if (data.weather) {
+        document.getElementById(
+            "uv_index"
+        ).textContent = data.weather.uv_index.toFixed(1);
+
+        document.getElementById(
+            "rain_forecast"
+        ).textContent = data.weather.rain_forecast.toFixed(1);
+
+        document.getElementById(
+            "cloud_coverage"
+        ).textContent = data.weather.cloud_coverage.toFixed(0);
+    }
 
     } catch (error) {
 
@@ -463,6 +532,8 @@ async function loadSensorData() {
         document.getElementById(
             "connection"
         ).style.color = "red";
+
+        console.error("Error fetching data:", error);
 
     }
 
@@ -524,13 +595,12 @@ async function loadAIDecision() {
 
 }
 
-
 async function loadHistory() {
 
     try {
 
         const response =
-            await fetch(API_URL + "/history");
+            await fetch(API_URL + "/telemetry-history");
 
         const data =
             await response.json();
@@ -550,12 +620,14 @@ async function loadHistory() {
             const row =
                 document.createElement("tr");
 
+            const rainStatus = item.raining ? "RAINING" : "DRY";
+            const rainColor = item.raining ? "red" : "green";
 
             row.innerHTML = `
 
                 <td>${item.timestamp}</td>
-                <td>${item.temperature} °C</td>
-                <td>${item.humidity} %</td>
+                <td>${item.temp.toFixed(2)}</td>
+                <td><span style="color: ${rainColor}; font-weight: bold;">${rainStatus}</span></td>
 
             `;
 
@@ -568,7 +640,7 @@ async function loadHistory() {
     } catch (error) {
 
         console.log(
-            "History unavailable"
+            "Telemetry history unavailable"
         );
 
     }
@@ -580,7 +652,7 @@ async function updateDashboard() {
 
     await loadSensorData();
 
-    await loadAIDecision();
+    // await loadAIDecision();
 
     await loadHistory();
 

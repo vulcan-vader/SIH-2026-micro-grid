@@ -4,6 +4,7 @@
 #include <Adafruit_INA3221.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <ArduinoJson.h>
 
 // --- NETWORK CONFIGURATION ---
 const char* ssid = "Airtel_juli_0293";
@@ -42,6 +43,174 @@ Adafruit_INA3221 ina2;
 
 // --- FUNCTION PROTOTYPES ---
 float readTemperatureLM35();
+
+// ==================== DATA STRUCTURE ====================
+struct SystemData {
+  // Relay States
+  bool mains_relay;
+  bool backup_relay;
+  bool motor_relay;
+  bool lights_relay;
+  bool usb_relay;
+  bool charge_relay;
+  
+  // Sensors
+  float temperature;
+  bool raining;
+  
+  // INA1 (0x40) - Mains, Charger, Motor
+  float mains_v, mains_i, mains_p;
+  float charge_v, charge_i, charge_p;
+  float motor_v, motor_i, motor_p;
+  
+  // INA2 (0x41) - Lights, USB, Backup
+  float lights_v, lights_i, lights_p;
+  float usb_v, usb_i, usb_p;
+  float backup_v, backup_i, backup_p;
+};
+
+// ==================== WEATHER DATA (as strings for OLED) ====================
+String weatherUV = "--";
+String weatherRain = "--";
+String weatherClouds = "--";
+
+SystemData systemData = {0};
+
+static unsigned long lastWeatherFetch = 0;
+const unsigned long weatherInterval = 600000;  // 10 minutes
+
+// ==================== FUNCTION TO READ ALL DATA ====================
+void readAllSystemData() {
+  // Read Relay States
+  systemData.mains_relay = (digitalRead(Mains_Relay) == LOW);    // LOW = Connected
+  systemData.backup_relay = (digitalRead(Backup_Relay) == HIGH);  // HIGH = Connected
+  systemData.motor_relay = (digitalRead(Motor_Relay) == HIGH);    // HIGH = ON
+  systemData.lights_relay = (digitalRead(Lights_Relay) == HIGH);  // HIGH = Normal Lights ON
+  systemData.usb_relay = (digitalRead(USB_Relay) == LOW);         // LOW = ON
+  systemData.charge_relay = (digitalRead(Charge_Relay) == HIGH);  // HIGH = ON
+  
+  // Read Sensors
+  systemData.temperature = readTemperatureLM35();
+  systemData.raining = (digitalRead(RAIN) == LOW);  // LOW = Raining
+  
+  // Read INA1 (0x40)
+  systemData.mains_v = ina1.getBusVoltage(0);
+  systemData.mains_i = ina1.getCurrentAmps(0) * 1000;  // Convert to mA
+  systemData.mains_p = systemData.mains_v * systemData.mains_i / 1000;
+  
+  systemData.charge_v = ina1.getBusVoltage(1);
+  systemData.charge_i = ina1.getCurrentAmps(1) * 1000;
+  systemData.charge_p = systemData.charge_v * systemData.charge_i / 1000;
+  
+  systemData.motor_v = ina1.getBusVoltage(2);
+  systemData.motor_i = ina1.getCurrentAmps(2) * 1000;
+  systemData.motor_p = systemData.motor_v * systemData.motor_i / 1000;
+  
+  // Read INA2 (0x41)
+  systemData.lights_v = ina2.getBusVoltage(0);
+  systemData.lights_i = ina2.getCurrentAmps(0) * 1000;
+  systemData.lights_p = systemData.lights_v * systemData.lights_i / 1000;
+  
+  systemData.usb_v = ina2.getBusVoltage(1);
+  systemData.usb_i = ina2.getCurrentAmps(1) * 1000;
+  systemData.usb_p = systemData.usb_v * systemData.usb_i / 1000;
+  
+  systemData.backup_v = ina2.getBusVoltage(2);
+  systemData.backup_i = ina2.getCurrentAmps(2) * 1000;
+  systemData.backup_p = systemData.backup_v * systemData.backup_i / 1000;
+}
+
+// ==================== FUNCTION TO BUILD JSON PAYLOAD ====================
+String buildSystemJSON() {
+  String json = "{";
+  
+  // Relay States (as L1, L2, L3, L4 for your dashboard)
+  json += "\"l1\":" + String(systemData.motor_relay ? "true" : "false") + ",";      // L1: Variable High (Motor)
+  json += "\"l2\":" + String(systemData.lights_relay ? "true" : "false") + ",";    // L2: Normal Constant (Lights)
+  json += "\"l3\":" + String(systemData.usb_relay ? "true" : "false") + ",";       // L3: Occasional (USB)
+  json += "\"l4\":" + String(systemData.charge_relay ? "true" : "false") + ",";    // L4: Charger
+  
+  // Sensors
+  json += "\"temp\":" + String(systemData.temperature, 2) + ",";
+  json += "\"raining\":" + String(systemData.raining ? "true" : "false") + ",";
+  
+  // Mains
+  json += "\"mains\":{";
+  json += "\"v\":" + String(systemData.mains_v, 2) + ",";
+  json += "\"i\":" + String(systemData.mains_i, 2) + ",";
+  json += "\"p\":" + String(systemData.mains_p, 2);
+  json += "},";
+  
+  // Charger
+  json += "\"charger\":{";
+  json += "\"v\":" + String(systemData.charge_v, 2) + ",";
+  json += "\"i\":" + String(systemData.charge_i, 2) + ",";
+  json += "\"p\":" + String(systemData.charge_p, 2);
+  json += "},";
+  
+  // Motor
+  json += "\"motor\":{";
+  json += "\"v\":" + String(systemData.motor_v, 2) + ",";
+  json += "\"i\":" + String(systemData.motor_i, 2) + ",";
+  json += "\"p\":" + String(systemData.motor_p, 2);
+  json += "},";
+  
+  // Lights
+  json += "\"lights\":{";
+  json += "\"v\":" + String(systemData.lights_v, 2) + ",";
+  json += "\"i\":" + String(systemData.lights_i, 2) + ",";
+  json += "\"p\":" + String(systemData.lights_p, 2);
+  json += "},";
+  
+  // USB
+  json += "\"usb\":{";
+  json += "\"v\":" + String(systemData.usb_v, 2) + ",";
+  json += "\"i\":" + String(systemData.usb_i, 2) + ",";
+  json += "\"p\":" + String(systemData.usb_p, 2);
+  json += "},";
+  
+  // Backup
+  json += "\"backup\":{";
+  json += "\"v\":" + String(systemData.backup_v, 2) + ",";
+  json += "\"i\":" + String(systemData.backup_i, 2) + ",";
+  json += "\"p\":" + String(systemData.backup_p, 2);
+  json += "}";
+  
+  json += "}";
+  return json;
+}
+
+// ==================== HTTP SENDING FUNCTION ====================
+void sendTelemetryHTTP(String jsonPayload) {
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    
+    // Connect to your laptop server
+    http.begin(serverName);
+    http.addHeader("Content-Type", "application/json");
+    
+    // Send POST request with JSON payload
+    int httpResponseCode = http.POST(jsonPayload);
+    
+    // Debug output
+    if (httpResponseCode > 0) {
+      Serial.printf("[HTTP] POST Success! Response Code: %d\n", httpResponseCode);
+      
+      // Optional: Read response from server
+      String response = http.getString();
+      Serial.printf("[HTTP] Response: %s\n", response.c_str());
+      
+    } else {
+      Serial.printf("[HTTP] POST Failed! Error Code: %d\n", httpResponseCode);
+    }
+    
+    http.end();
+    
+  } else {
+    Serial.println("[HTTP] WiFi Disconnected. Cannot send data.");
+  }
+}
+
 
 void setup() {
   Serial.begin(115200);
@@ -107,8 +276,10 @@ void setup() {
   }
   
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\nWi-Fi Connected!");
-  } else {
+    Serial.println("✓ WiFi connected!");
+    Serial.printf("IP Address: %s\n", WiFi.localIP().toString().c_str());
+  }
+  else {
     Serial.println("\nWi-Fi Connection Failed! Continuing offline...");
   }
 
@@ -118,6 +289,12 @@ void setup() {
 void loop() {
   // Read Temperature Sensor
   float temperature = readTemperatureLM35();
+
+   // Fetch weather every 10 minutes
+  if (millis() - lastWeatherFetch >= weatherInterval) {
+    lastWeatherFetch = millis();
+    fetchWeatherData();
+  }
 
   // ==================== INA1 MODULE (0x40) ====================
   // CH1: Mains
@@ -169,42 +346,25 @@ void loop() {
   Serial.printf("INA2 Backup : %.2f V | %.2f mA | %.2f W\n", Backup_V, Backup_I, Backup_P);
   Serial.println("=============================================");
 
-  // ==================== PERIODIC HTTP POST ====================
+  // Read all system data
+  readAllSystemData();
+  
+  // Build JSON
+  String jsonPayload = buildSystemJSON();
+  
+  // Serial debug output
+  Serial.println("=== SYSTEM DATA ===");
+  Serial.println(jsonPayload);
+  Serial.println("===================\n");
+  
+  // HTTP POST every 3 seconds
   if (millis() - lastSendTime >= sendInterval) {
     lastSendTime = millis();
-
-    // Build complete JSON string payload
-    String jsonPayload = "{";
-    jsonPayload += "\"temp\":" + String(temperature, 2) + ",";
-    jsonPayload += "\"raining\":" + String(digitalRead(RAIN) ? "false" : "true") + ",";
-    jsonPayload += "\"mains\":{\"v\":" + String(Mains_V, 2) + ",\"i\":" + String(Mains_I, 2) + ",\"p\":" + String(Mains_P, 2) + "},";
-    jsonPayload += "\"charge\":{\"v\":" + String(Charge_V, 2) + ",\"i\":" + String(Charge_I, 2) + ",\"p\":" + String(Charge_P, 2) + "},";
-    jsonPayload += "\"motor\":{\"v\":" + String(Motor_V, 2) + ",\"i\":" + String(Motor_I, 2) + ",\"p\":" + String(Motor_P, 2) + "},";
-    jsonPayload += "\"lights\":{\"v\":" + String(Lights_V, 2) + ",\"i\":" + String(Lights_I, 2) + ",\"p\":" + String(Lights_P, 2) + "},";
-    jsonPayload += "\"usb\":{\"v\":" + String(USB_V, 2) + ",\"i\":" + String(USB_I, 2) + ",\"p\":" + String(USB_P, 2) + "},";
-    jsonPayload += "\"backup\":{\"v\":" + String(Backup_V, 2) + ",\"i\":" + String(Backup_I, 2) + ",\"p\":" + String(Backup_P, 2) + "}";
-    jsonPayload += "}";
-
+    Serial.println("[SENDING] Posting to laptop...");
     sendTelemetryHTTP(jsonPayload);
   }
-
-  delay(300); // Smooth loop pacing
-}
-
-// Helper: Post JSON Payload over HTTP
-void sendTelemetryHTTP(String payload) {
-  if (WiFi.status() == WL_CONNECTED) {
-    HTTPClient http;
-    http.begin(serverName);
-    http.addHeader("Content-Type", "application/json");
-
-    int responseCode = http.POST(payload);
-    Serial.printf("[HTTP] POST Result Code: %d\n", responseCode);
-    
-    http.end();
-  } else {
-    Serial.println("[HTTP] Wi-Fi Disconnected. Skipping POST.");
-  }
+  
+  delay(300);
 }
 
 // Helper: Read Analog LM35 Sensor
@@ -212,4 +372,33 @@ float readTemperatureLM35() {
   int rawADC = analogRead(LM35_TEMP);
   float millivolts = (rawADC / 4095.0) * 3300.0;
   return millivolts / 10.0; // LM35 output is 10mV per °C
+}
+
+void fetchWeatherData() {
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    http.begin("http://192.168.1.5:8000/weather");
+    
+    int httpResponseCode = http.GET();
+    
+    if (httpResponseCode == 200) {
+      String response = http.getString();
+      
+      // Parse JSON
+      DynamicJsonDocument doc(512);
+      deserializeJson(doc, response);
+      
+      weatherUV = String(doc["uv_index"].as<float>(), 1);
+      weatherRain = String(doc["rain_forecast"].as<float>(), 1);
+      weatherClouds = String(doc["cloud_coverage"].as<float>(), 0);
+      
+      Serial.printf("✓ Weather: UV=%s, Rain=%s, Clouds=%s\n", 
+        weatherUV.c_str(), weatherRain.c_str(), weatherClouds.c_str());
+      
+    } else {
+      Serial.printf("❌ Weather fetch failed: %d\n", httpResponseCode);
+    }
+    
+    http.end();
+  }
 }
