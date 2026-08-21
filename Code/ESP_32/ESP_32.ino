@@ -137,7 +137,7 @@ String buildSystemJSON() {
   // Relay States (as L1, L2, L3, L4 for your dashboard)
   json += "\"l1\":" + String(systemData.motor_relay ? "true" : "false") + ",";      // L1: Variable High (Motor)
   json += "\"l2\":" + String(systemData.lights_relay ? "true" : "false") + ",";    // L2: Normal Constant (Lights)
-  json += "\"l3\":" + String(systemData.usb_relay ? "false" : "true") + ",";       // L3: Occasional (USB)
+  json += "\"l3\":" + String(systemData.usb_relay ? "true" : "false") + ",";       // L3: Occasional (USB)
   json += "\"l4\":" + String(systemData.charge_relay ? "true" : "false") + ",";    // L4: Charger
   
   // Sensors

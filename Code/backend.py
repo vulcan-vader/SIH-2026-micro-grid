@@ -203,8 +203,8 @@ def get_weather():
     """Get current weather data"""
     global current_weather, last_weather_update
     
-    # Update every 10 minutes
-    if (datetime.now() - last_weather_update).total_seconds() > 600:
+    # Update every 10 sec
+    if (datetime.now() - last_weather_update).total_seconds() > 10:
         current_weather = fetch_weather_data()
         last_weather_update = datetime.now()
     
@@ -215,8 +215,8 @@ def get_dashboard_data():
     """Get latest data formatted for dashboard"""
     global current_weather, last_weather_update
     
-    # Update weather every 10 minutes
-    if (datetime.now() - last_weather_update).total_seconds() > 600:
+    # Update weather every 10 sec
+    if (datetime.now() - last_weather_update).total_seconds() > 10:
         current_weather = fetch_weather_data()
         last_weather_update = datetime.now()
     

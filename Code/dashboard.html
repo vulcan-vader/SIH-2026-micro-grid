@@ -377,7 +377,7 @@ function updateStatus(elementId, value) {
 
     const element = document.getElementById(elementId);
 
-    if (value === true) {
+    if (value == 1 || value === true) {
 
         element.textContent = "ON";
         element.className = "value on";
