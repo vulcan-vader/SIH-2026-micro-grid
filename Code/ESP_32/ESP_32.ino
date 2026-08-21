@@ -11,8 +11,11 @@ const char* ssid = "Airtel_juli_0293";
 const char* password = "Air@89883";
 const char* serverName = "http://192.168.1.5:8000/sensor"; // Replace X with server IP
 
-unsigned long lastSendTime = 0;
 const unsigned long sendInterval = 3000; // Send telemetry every 3 seconds
+unsigned long lastSendTime = 0;
+unsigned long lastDisplayTime = 0;
+bool forceDisplayUpdate = true; // Forces immediate update on button press
+
 
 // --- PIN DEFINITIONS ---
 #define I2C_SDA        21
@@ -28,13 +31,20 @@ const unsigned long sendInterval = 3000; // Send telemetry every 3 seconds
 #define LM35_TEMP      34 // Senses temperature of Battery
 #define RAIN           35 // Senses Rain
 
-#define NXT_SW1        18 // Next button for display
-#define PREV_SW2       19 // Previous button for display
+#define SCROLL_SW1        18 // Next button for display
+#define SELECT_SW2       19 // Previous button for display
 
 // --- I2C ADDRESSES ---
 #define INA1_ADDR      0x40 // Monitors Mains, Battery Charger, Motor [CH1,CH2,CH3]
 #define INA2_ADDR      0x41 // Monitors Lights, USB Charger, Backup Battery [CH!,CH2,CH3]
 #define OLED_ADDR      0x3C
+
+// --- MENU STATE VARIABLES ---
+int lastState1 = HIGH;    // Default HIGH because of INPUT_PULLUP
+int currentState1 = HIGH;
+int lastState2 = HIGH;
+int currentState2 = HIGH;
+int currentPage = 0;      // Keeps track of the current OLED page (0 to 6)
 
 // --- OBJECT INSTANTIATIONS ---
 Adafruit_SH1106G display = Adafruit_SH1106G(128, 64, &Wire, -1);
@@ -77,7 +87,7 @@ String weatherClouds = "--";
 SystemData systemData = {0};
 
 static unsigned long lastWeatherFetch = 0;
-const unsigned long weatherInterval = 600000;  // 10 minutes
+const unsigned long weatherInterval = 10000;  // 10 sec
 
 // ==================== FUNCTION TO READ ALL DATA ====================
 void readAllSystemData() {
@@ -127,7 +137,7 @@ String buildSystemJSON() {
   // Relay States (as L1, L2, L3, L4 for your dashboard)
   json += "\"l1\":" + String(systemData.motor_relay ? "true" : "false") + ",";      // L1: Variable High (Motor)
   json += "\"l2\":" + String(systemData.lights_relay ? "true" : "false") + ",";    // L2: Normal Constant (Lights)
-  json += "\"l3\":" + String(systemData.usb_relay ? "true" : "false") + ",";       // L3: Occasional (USB)
+  json += "\"l3\":" + String(systemData.usb_relay ? "false" : "true") + ",";       // L3: Occasional (USB)
   json += "\"l4\":" + String(systemData.charge_relay ? "true" : "false") + ",";    // L4: Charger
   
   // Sensors
@@ -231,8 +241,8 @@ void setup() {
   digitalWrite(Charge_Relay, LOW);
 
   // 2. Configure Inputs
-  pinMode(NXT_SW1, INPUT_PULLUP);
-  pinMode(PREV_SW2, INPUT_PULLUP);
+  pinMode(SCROLL_SW1, INPUT_PULLUP);
+  pinMode(SELECT_SW2, INPUT_PULLUP);
   pinMode(LM35_TEMP, INPUT);
   pinMode(RAIN, INPUT);
 
@@ -252,9 +262,11 @@ void setup() {
     display.clearDisplay();
     display.setTextSize(1);
     display.setTextColor(SH110X_WHITE);
-    display.setCursor(51, 31);
-    display.println(F("TESTING"));
+    display.setCursor(40, 31);
+    display.println(F("POWER GRID"));
     display.display();
+
+    
   }
 
   // 5. Initialize INA3221 Sensors
@@ -287,10 +299,52 @@ void setup() {
 }
 
 void loop() {
+
+  // --- BUTTON STATE & PAGE SWITCHING ---
+  currentState1 = digitalRead(SCROLL_SW1);
+  currentState2 = digitalRead(SELECT_SW2);
+
+  // Check if SCROLL_SW1 was just pressed
+  if (lastState1 == HIGH && currentState1 == LOW) {
+    currentPage++;
+    if (currentPage > 7) { // Expanded from 6 to 7 for 8 total pages
+      currentPage = 0;
+    }
+    forceDisplayUpdate = true;
+    Serial.printf("Scrolled to Page: %d\n", currentPage);
+  }
+
+  // Check if SELECT_SW2 was just pressed
+  if (lastState2 == HIGH && currentState2 == LOW) {
+    Serial.println("Select Button Pressed! Toggling Relay...");
+    forceDisplayUpdate = true; 
+    
+    switch (currentPage) {
+      case 0: // Dashboard
+      case 1: // Weather API (Info-only page)
+        break; 
+      case 2: // Mains Input 
+      case 7: // Backup Battery 
+        if (ina2.getBusVoltage(2) > 10){
+        digitalWrite(Mains_Relay, !digitalRead(Mains_Relay));
+        digitalWrite(Backup_Relay, !digitalRead(Backup_Relay));
+        }
+        break;
+      case 3: digitalWrite(Charge_Relay, !digitalRead(Charge_Relay)); break;
+      case 4: digitalWrite(Motor_Relay, !digitalRead(Motor_Relay)); break;
+      case 5: digitalWrite(Lights_Relay, !digitalRead(Lights_Relay)); break;
+      case 6: digitalWrite(USB_Relay, !digitalRead(USB_Relay)); break;
+    }
+  }
+
+  // Save states for next loop iteration
+  lastState1 = currentState1;
+  lastState2 = currentState2;
+
   // Read Temperature Sensor
   float temperature = readTemperatureLM35();
 
-   // Fetch weather every 10 minutes
+   // Fetch weather every 10 sec
   if (millis() - lastWeatherFetch >= weatherInterval) {
     lastWeatherFetch = millis();
     fetchWeatherData();
@@ -327,6 +381,87 @@ void loop() {
   float Backup_V = ina2.getBusVoltage(2);
   float Backup_I = ina2.getCurrentAmps(2) * 1000;
   float Backup_P = Backup_V * Backup_I / 1000;
+
+ // 3. --- UPDATE OLED DISPLAY MULTI-PAGE MENU ---
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SH110X_WHITE);
+  display.setCursor(0, 0);
+
+  if (millis() - lastDisplayTime >= 1000 || forceDisplayUpdate) {
+    lastDisplayTime = millis();
+    forceDisplayUpdate = false;
+
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setTextColor(1); // Using 1 instead of SH110X_WHITE is safer for some libraries
+    display.setCursor(0, 0);
+    switch (currentPage) {
+      case 0:
+        display.println(F("--- DASHBOARD ---"));
+        display.printf("Temp : %.1f C\n", temperature);
+        display.printf("Rain : %s\n", digitalRead(RAIN) ? "NO" : "YES");
+        display.println(F("-----------------"));
+        display.println(F("Press NEXT for Weather"));
+        break;
+
+      case 1: // NEW WEATHER PAGE PLACEHOLDER
+        display.println(F("--- WEATHER API ---"));
+        display.printf("UV_INDEX: %s\n", weatherUV);
+        display.printf("Rain    : %s mm\n", weatherRain);
+        display.printf("clouds  : %s\n", weatherClouds);
+        break;
+
+      case 2:
+        display.println(F("--- MAINS INPUT ---"));
+        display.printf("Volt : %.2f V\n", Mains_V);
+        display.printf("Curr : %.0f mA\n", Mains_I);
+        display.printf("Pwr  : %.2f W\n", Mains_P);
+        display.printf("Stat : %s\n", digitalRead(Mains_Relay) ? "DISCONN" : "CONN");
+        break;
+
+      case 3:
+        display.println(F("--- BATT CHARGER ---"));
+        display.printf("Volt : %.2f V\n", Charge_V);
+        display.printf("Curr : %.0f mA\n", Charge_I);
+        display.printf("Pwr  : %.2f W\n", Charge_P);
+        display.printf("Stat : %s\n", digitalRead(Charge_Relay) ? "ON" : "OFF");
+        break;
+
+      case 4:
+        display.println(F("--- MOTOR LOAD ---"));
+        display.printf("Volt : %.2f V\n", Motor_V);
+        display.printf("Curr : %.0f mA\n", Motor_I);
+        display.printf("Pwr  : %.2f W\n", Motor_P);
+        display.printf("Stat : %s\n", digitalRead(Motor_Relay) ? "ON" : "OFF");
+        break;
+
+      case 5:
+        display.println(F("--- LIGHTS LOAD ---"));
+        display.printf("Volt : %.2f V\n", Lights_V);
+        display.printf("Curr : %.0f mA\n", Lights_I);
+        display.printf("Pwr  : %.2f W\n", Lights_P);
+        display.printf("Stat : %s\n", digitalRead(Lights_Relay) ? "NORMAL" : "EMERG");
+        break;
+
+      case 6:
+        display.println(F("--- USB LOAD ---"));
+        display.printf("Volt : %.2f V\n", USB_V);
+        display.printf("Curr : %.0f mA\n", USB_I);
+        display.printf("Pwr  : %.2f W\n", USB_P);
+        display.printf("Stat : %s\n", digitalRead(USB_Relay) ? "OFF" : "ON");
+        break;
+
+      case 7:
+        display.println(F("--- BACKUP BATT ---"));
+        display.printf("Volt : %.2f V\n", Backup_V);
+        display.printf("Curr : %.0f mA\n", Backup_I);
+        display.printf("Pwr  : %.2f W\n", Backup_P);
+        display.printf("Stat : %s\n", digitalRead(Backup_Relay) ? "CONN" : "ISOLATED");
+        break;
+    }
+    display.display();
+  }
 
   // ==================== SERIAL DEBUG OUTPUT ====================
   Serial.println("================ SENSOR DATA ================");
