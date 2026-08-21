@@ -1,161 +1,602 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>ESP32 Dashboard</title>
+<title>ESP32 Energy Dashboard</title>
 
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f2f2f2;
-            text-align: center;
-            padding: 30px;
-        }
+<style>
 
-        .card {
-            background: white;
-            display: inline-block;
-            width: 220px;
-            margin: 10px;
-            padding: 25px;
-            border-radius: 15px;
-        }
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f2f4f8;
+    color: #222;
+}
 
-        .value {
-            font-size: 40px;
-            margin-top: 15px;
-        }
+header {
+    background: #1f2937;
+    color: white;
+    text-align: center;
+    padding: 20px;
+}
 
-        #status {
-            margin: 20px;
-            font-size: 18px;
-        }
+header h1 {
+    margin: 0;
+}
 
-        table {
-            margin: 30px auto;
-            border-collapse: collapse;
-            background: white;
-        }
+.status {
+    margin-top: 8px;
+    font-size: 14px;
+}
 
-        th,
-        td {
-            padding: 12px;
-            border: 1px solid #999;
-        }
-    </style>
+.container {
+    max-width: 1200px;
+    margin: auto;
+    padding: 20px;
+}
+
+.section-title {
+    margin-top: 30px;
+    margin-bottom: 15px;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 15px;
+}
+
+.card {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.card h3 {
+    margin-top: 0;
+}
+
+.value {
+    font-size: 28px;
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+.unit {
+    font-size: 16px;
+    color: #666;
+}
+
+.on {
+    color: green;
+    font-weight: bold;
+}
+
+.off {
+    color: red;
+    font-weight: bold;
+}
+
+.ai-box {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-top: 20px;
+}
+
+.ai-message {
+    padding: 12px;
+    margin-top: 10px;
+    border-radius: 8px;
+    background: #f1f5f9;
+}
+
+.approved {
+    color: green;
+    font-weight: bold;
+}
+
+.not-approved {
+    color: red;
+    font-weight: bold;
+}
+
+table {
+    width: 100%;
+    background: white;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+th, td {
+    padding: 12px;
+    border: 1px solid #ddd;
+    text-align: center;
+}
+
+th {
+    background: #1f2937;
+    color: white;
+}
+
+</style>
 </head>
 
 <body>
 
-    <h1>ESP32 Dashboard</h1>
+<header>
 
-    <div class="card">
-        <h2>Temperature</h2>
-        <div class="value" id="temperature">-- °C</div>
-    </div>
+<h1>⚡ ESP32 Energy Management Dashboard</h1>
 
-    <div class="card">
-        <h2>Humidity</h2>
-        <div class="value" id="humidity">-- %</div>
-    </div>
+<div class="status">
+System Status:
+<span id="connection">Connecting...</span>
+</div>
 
-    <div id="status">Loading...</div>
-
-    <h2>Reading History</h2>
-
-    <table>
-        <thead>
-            <tr>
-                <th>Time</th>
-                <th>Temperature</th>
-                <th>Humidity</th>
-            </tr>
-        </thead>
-
-        <tbody id="history">
-        </tbody>
-    </table>
+</header>
 
 
-    <script>
-
-        async function updateDashboard() {
-
-            try {
-
-                const sensorResponse = await fetch(
-                    "http://127.0.0.1:8000/sensor"
-                );
-
-                const sensorData = await sensorResponse.json();
-
-                document.getElementById("temperature").textContent =
-                    sensorData.temperature + " °C";
-
-                document.getElementById("humidity").textContent =
-                    sensorData.humidity + " %";
+<div class="container">
 
 
-                const historyResponse = await fetch(
-                    "http://127.0.0.1:8000/history"
-                );
+<!-- SOLAR -->
 
-                const historyData = await historyResponse.json();
+<h2 class="section-title">☀️ Solar System</h2>
 
-                const historyTable =
-                    document.getElementById("history");
+<div class="grid">
 
-                historyTable.innerHTML = "";
+<div class="card">
+<h3>Solar Voltage</h3>
+<div class="value">
+<span id="solar_voltage">--</span>
+<span class="unit">V</span>
+</div>
+</div>
 
+<div class="card">
+<h3>Solar Current</h3>
+<div class="value">
+<span id="solar_current">--</span>
+<span class="unit">A</span>
+</div>
+</div>
 
-                historyData.forEach(function (reading) {
+<div class="card">
+<h3>Solar Power</h3>
+<div class="value">
+<span id="solar_power">--</span>
+<span class="unit">W</span>
+</div>
+</div>
 
-                    const row = document.createElement("tr");
-
-                    const timeCell = document.createElement("td");
-                    timeCell.textContent = reading.timestamp;
-
-                    const temperatureCell = document.createElement("td");
-                    temperatureCell.textContent =
-                        reading.temperature + " °C";
-
-                    const humidityCell = document.createElement("td");
-                    humidityCell.textContent =
-                        reading.humidity + " %";
-
-                    row.appendChild(timeCell);
-                    row.appendChild(temperatureCell);
-                    row.appendChild(humidityCell);
-
-                    historyTable.appendChild(row);
-
-                });
+</div>
 
 
-                document.getElementById("status").textContent =
-                    "Connected to FastAPI";
+<!-- BATTERY -->
 
-            } catch (error) {
+<h2 class="section-title">🔋 Battery Storage</h2>
 
-                console.error(error);
+<div class="grid">
 
-                document.getElementById("status").textContent =
-                    "Error connecting to FastAPI";
+<div class="card">
+<h3>Battery Voltage</h3>
+<div class="value">
+<span id="battery_voltage">--</span>
+<span class="unit">V</span>
+</div>
+</div>
 
-            }
+<div class="card">
+<h3>Battery Current</h3>
+<div class="value">
+<span id="battery_current">--</span>
+<span class="unit">A</span>
+</div>
+</div>
+
+<div class="card">
+<h3>Battery Level</h3>
+<div class="value">
+<span id="battery_percentage">--</span>
+<span class="unit">%</span>
+</div>
+</div>
+
+<div class="card">
+<h3>Battery Temperature</h3>
+<div class="value">
+<span id="battery_temperature">--</span>
+<span class="unit">°C</span>
+</div>
+</div>
+
+</div>
+
+
+<!-- LOAD STATUS -->
+
+<h2 class="section-title">⚡ Load Status</h2>
+
+<div class="grid">
+
+<div class="card">
+<h3>L1</h3>
+<div class="value" id="l1">--</div>
+</div>
+
+<div class="card">
+<h3>L2</h3>
+<div class="value" id="l2">--</div>
+</div>
+
+<div class="card">
+<h3>L3</h3>
+<div class="value" id="l3">--</div>
+</div>
+
+</div>
+
+
+<!-- DEVICES -->
+
+<h2 class="section-title">🏠 Devices</h2>
+
+<div class="grid">
+
+<div class="card">
+<h3>Motor</h3>
+<div class="value" id="motor">--</div>
+</div>
+
+<div class="card">
+<h3>Pump</h3>
+<div class="value" id="pump">--</div>
+</div>
+
+<div class="card">
+<h3>Charger</h3>
+<div class="value" id="charger">--</div>
+</div>
+
+<div class="card">
+<h3>Lights</h3>
+<div class="value" id="lights">--</div>
+</div>
+
+</div>
+
+
+<!-- CONSUMPTION -->
+
+<h2 class="section-title">📊 Power Consumption</h2>
+
+<div class="grid">
+
+<div class="card">
+<h3>Load Voltage</h3>
+<div class="value">
+<span id="load_voltage">--</span>
+<span class="unit">V</span>
+</div>
+</div>
+
+<div class="card">
+<h3>Load Current</h3>
+<div class="value">
+<span id="load_current">--</span>
+<span class="unit">A</span>
+</div>
+</div>
+
+<div class="card">
+<h3>Load Power</h3>
+<div class="value">
+<span id="load_power">--</span>
+<span class="unit">W</span>
+</div>
+</div>
+
+</div>
+
+
+<!-- AI CHAT -->
+
+<h2 class="section-title">🤖 AI Decision Chat</h2>
+
+<div class="ai-box">
+
+<div class="ai-message">
+<strong>🤖 AI Decision:</strong>
+<div id="ai_decision">Waiting for AI decision...</div>
+</div>
+
+<div class="ai-message">
+<strong>📝 Reason:</strong>
+<div id="ai_reason">--</div>
+</div>
+
+<div class="ai-message">
+<strong>⚙️ System Decision:</strong>
+<div id="ai_status">--</div>
+</div>
+
+</div>
+
+
+<!-- HISTORY -->
+
+<h2 class="section-title">📈 Reading History</h2>
+
+<table>
+
+<thead>
+<tr>
+<th>Time</th>
+<th>Temperature</th>
+<th>Humidity</th>
+</tr>
+</thead>
+
+<tbody id="history_table">
+</tbody>
+
+</table>
+
+
+</div>
+
+
+<script>
+
+const API_URL = "http://127.0.0.1:8000";
+
+
+function updateStatus(elementId, value) {
+
+    const element = document.getElementById(elementId);
+
+    if (value === true) {
+
+        element.textContent = "ON";
+        element.className = "value on";
+
+    } else {
+
+        element.textContent = "OFF";
+        element.className = "value off";
+
+    }
+
+}
+
+
+async function loadSensorData() {
+
+    try {
+
+        const response =
+            await fetch(API_URL + "/sensor");
+
+        const data =
+            await response.json();
+
+
+        document.getElementById(
+            "solar_voltage"
+        ).textContent = data.solar_voltage;
+
+
+        document.getElementById(
+            "solar_current"
+        ).textContent = data.solar_current;
+
+
+        document.getElementById(
+            "solar_power"
+        ).textContent = data.solar_power;
+
+
+        document.getElementById(
+            "battery_voltage"
+        ).textContent = data.battery_voltage;
+
+
+        document.getElementById(
+            "battery_current"
+        ).textContent = data.battery_current;
+
+
+        document.getElementById(
+            "battery_percentage"
+        ).textContent = data.battery_percentage;
+
+
+        document.getElementById(
+            "battery_temperature"
+        ).textContent = data.battery_temperature;
+
+
+        document.getElementById(
+            "load_voltage"
+        ).textContent = data.load_voltage;
+
+
+        document.getElementById(
+            "load_current"
+        ).textContent = data.load_current;
+
+
+        document.getElementById(
+            "load_power"
+        ).textContent = data.load_power;
+
+
+        updateStatus("l1", data.l1);
+        updateStatus("l2", data.l2);
+        updateStatus("l3", data.l3);
+
+        updateStatus("motor", data.motor);
+        updateStatus("pump", data.pump);
+        updateStatus("charger", data.charger);
+        updateStatus("lights", data.lights);
+
+
+        document.getElementById(
+            "connection"
+        ).textContent = "Connected";
+
+        document.getElementById(
+            "connection"
+        ).style.color = "lightgreen";
+
+
+    } catch (error) {
+
+        document.getElementById(
+            "connection"
+        ).textContent = "Disconnected";
+
+        document.getElementById(
+            "connection"
+        ).style.color = "red";
+
+    }
+
+}
+
+
+async function loadAIDecision() {
+
+    try {
+
+        const response =
+            await fetch(API_URL + "/ai-decision");
+
+        const data =
+            await response.json();
+
+
+        document.getElementById(
+            "ai_decision"
+        ).textContent = data.decision;
+
+
+        document.getElementById(
+            "ai_reason"
+        ).textContent = data.reason;
+
+
+        const statusElement =
+            document.getElementById(
+                "ai_status"
+            );
+
+
+        statusElement.textContent =
+            data.status;
+
+
+        if (data.approved) {
+
+            statusElement.className =
+                "approved";
+
+        } else {
+
+            statusElement.className =
+                "not-approved";
 
         }
 
 
-        updateDashboard();
+    } catch (error) {
 
-        setInterval(updateDashboard, 2000);
+        document.getElementById(
+            "ai_status"
+        ).textContent =
+            "AI System Unavailable";
 
-    </script>
+    }
+
+}
+
+
+async function loadHistory() {
+
+    try {
+
+        const response =
+            await fetch(API_URL + "/history");
+
+        const data =
+            await response.json();
+
+
+        const table =
+            document.getElementById(
+                "history_table"
+            );
+
+
+        table.innerHTML = "";
+
+
+        data.forEach(item => {
+
+            const row =
+                document.createElement("tr");
+
+
+            row.innerHTML = `
+
+                <td>${item.timestamp}</td>
+                <td>${item.temperature} °C</td>
+                <td>${item.humidity} %</td>
+
+            `;
+
+
+            table.appendChild(row);
+
+        });
+
+
+    } catch (error) {
+
+        console.log(
+            "History unavailable"
+        );
+
+    }
+
+}
+
+
+async function updateDashboard() {
+
+    await loadSensorData();
+
+    await loadAIDecision();
+
+    await loadHistory();
+
+}
+
+
+updateDashboard();
+
+
+setInterval(
+    updateDashboard,
+    2000
+);
+
+</script>
+
 
 </body>
-
 </html>
